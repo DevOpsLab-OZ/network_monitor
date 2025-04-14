@@ -1,0 +1,4 @@
+# 기본 설정
+DEFAULT_PING_COUNT = 5
+DEFAULT_TIMEOUT = 2 # 초 단위
+DEFAULT_PORT_RANGE = (1, 1024) # 스캔할 기본 포트 범위
