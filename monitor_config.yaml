@@ -1,0 +1,28 @@
+alerts:
+  console:
+    enabled: true
+  email:
+    enabled: false
+    recipient_email: recipient@example.com
+    sender_email: your-email@gmail.com
+    sender_password: your-password
+    smtp_port: 587
+    smtp_server: smtp.gmail.com
+  log:
+    enabled: true
+    file: monitor.log
+monitors:
+- alert_threshold: 2
+  check_interval: 300
+  count: 3
+  host: google.com
+  name: Google Web Server
+  timeout: 2
+  type: ping
+- alert_threshold: 3
+  check_interval: 60
+  host: localhost
+  name: Local Web Server
+  port: 80
+  timeout: 1
+  type: port

@@ -1,6 +1,6 @@
-# 네트워크 모니터링 도구 - 단계 4
+# 네트워크 모니터링 도구 - 단계 5
 
-이 프로젝트는 Python을 사용한 간단한 네트워크 모니터링 도구입니다. 기본적인 네트워크 진단 기능을 제공하여 네트워크 상태를 파악하고 문제를 진단하는 데 도움을 줍니다.
+이 프로젝트는 Python을 사용한 종합적인 네트워크 모니터링 도구입니다. 기본적인 네트워크 진단 기능과 모니터링 기능을 제공하여 네트워크 상태를 파악하고 문제를 진단하는 데 도움을 줍니다.
 
 ## 현재 구현된 기능
 
@@ -33,6 +33,14 @@
   - 실시간 결과 표시 및 포맷팅
   - 반응형 디자인으로 다양한 기기에서 사용 가능
   - 사용자 친화적인 폼 검증 및 에러 처리
+
+### 단계 5
+- **주기적 모니터링 및 알림 기능**:
+  - 여러 호스트와 서비스의 상태를 주기적으로 모니터링
+  - 설정 가능한 확인 간격 및 알림 임계값
+  - 다양한 알림 방식 지원 (이메일, 로그 파일, 콘솔)
+  - 문제 발생 및 복구 시 자동 알림
+  - YAML 기반 설정 파일로 쉬운 구성 관리
 
 ## 설치 방법
 
@@ -170,6 +178,51 @@ http://localhost:5000
 - **포트 스캔**: 특정 호스트의 열린 포트 확인
 - **DNS 조회**: 도메인 이름에 대한 DNS 레코드 조회 및 역방향 DNS 조회
 
+### 주기적 모니터링
+
+모니터링 도구를 시작하려면:
+
+```bash
+python monitor.py
+```
+
+최초 실행 시 기본 설정 파일(`monitor_config.yaml`)이 생성됩니다. 이 파일을 편집하여 모니터링할 호스트, 확인 간격, 알림 방법 등을 설정할 수 있습니다.
+
+#### 설정 파일 예시
+
+```yaml
+monitors:
+  - name: "Google DNS 테스트"
+    type: "ping"
+    host: "8.8.8.8"
+    count: 3
+    timeout: 1
+    check_interval: 300  # 5분마다 확인
+    alert_threshold: 2   # 2번 연속 실패 시 알림
+
+  - name: "웹 서버 테스트"
+    type: "port"
+    host: "example.com"
+    port: 80
+    timeout: 1
+    check_interval: 60   # 1분마다 확인
+    alert_threshold: 3   # 3번 연속 실패 시 알림
+
+alerts:
+  email:
+    enabled: true
+    smtp_server: "smtp.gmail.com"
+    smtp_port: 587
+    sender_email: "your-email@gmail.com"
+    sender_password: "your-password"
+    recipient_email: "recipient@example.com"
+  log:
+    enabled: true
+    file: "monitor.log"
+  console:
+    enabled: true
+```
+
 ## 프로젝트 구조
 
 ```
@@ -179,22 +232,26 @@ network_monitor/
 │   ├── ping_monitor.py    # Ping 모니터링 모듈
 │   ├── port_scanner.py    # 포트 스캔 모듈
 │   ├── dns_lookup.py      # DNS 조회 모듈
-│   ├── utils.py           # (향후 구현) 유틸리티 함수들
+│   ├── utils.py           # 유틸리티 함수들
 │   └── config.py          # 설정 관리
 ├── app.py                 # 명령행 인터페이스
 ├── web_app.py             # 웹 인터페이스
+├── monitor.py             # 주기적 모니터링 및 알림
 ├── templates/             # 웹 템플릿 디렉토리
 │   └── index.html         # 메인 웹 페이지
+├── monitor_config.yaml    # 모니터링 설정 파일
+├── monitor.log            # 모니터링 로그 파일
 ├── requirements.txt       # 필요한 패키지 목록
 └── README.md              # 프로젝트 설명
 ```
 
 ## 향후 개발 계획
 
-- 주기적 모니터링 및 알림 기능
-- 결과 저장 및 리포팅 기능
+- 결과 데이터베이스 저장 및 이력 조회 기능
 - 네트워크 트래픽 분석 기능
-- 더 풍부한 시각화 및 그래프
+- 더 풍부한 시각화 및 대시보드
+- API 엔드포인트 제공
+- Docker 컨테이너 지원
 
 ## 기여 방법
 
