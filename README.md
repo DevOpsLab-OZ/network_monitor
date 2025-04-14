@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-# 네트워크 모니터링 도구 - 단계 2
-=======
 # 네트워크 모니터링 도구 - 단계 3
->>>>>>> feature/dns
 
 이 프로젝트는 Python을 사용한 간단한 네트워크 모니터링 도구입니다. 기본적인 네트워크 진단 기능을 제공하여 네트워크 상태를 파악하고 문제를 진단하는 데 도움을 줍니다.
 
@@ -23,8 +19,6 @@
   - 일반적인 포트만 스캔하는 옵션
   - 멀티스레딩을 이용한 병렬 스캔
 
-<<<<<<< HEAD
-=======
 ### 단계 3
 - **DNS 조회 기능**:
   - 도메인 이름에 대한 다양한 DNS 레코드 조회 (A, AAAA, MX, NS, TXT, SOA, CNAME)
@@ -32,7 +26,6 @@
   - 상세한 DNS 정보 표시 (TTL, 우선순위 등)
   - 강력한 오류 처리 및 디버깅 정보
 
->>>>>>> feature/dns
 ## 설치 방법
 
 ### 요구사항
@@ -105,8 +98,6 @@ python app.py scan localhost --common
 python app.py scan localhost -t 0.2
 ```
 
-<<<<<<< HEAD
-=======
 ### DNS 조회
 
 #### 정방향 DNS 조회
@@ -151,7 +142,6 @@ python app.py dns reverse 8.8.8.8
 python app.py dns reverse 1.1.1.1 --timeout 3.0
 ```
 
->>>>>>> feature/dns
 ## 프로젝트 구조
 
 ```
@@ -160,11 +150,7 @@ network_monitor/
 │   ├── __init__.py        # 패키지 초기화 파일
 │   ├── ping_monitor.py    # Ping 모니터링 모듈
 │   ├── port_scanner.py    # 포트 스캔 모듈
-<<<<<<< HEAD
-│   ├── dns_lookup.py      # (향후 구현) DNS 조회 모듈
-=======
 │   ├── dns_lookup.py      # DNS 조회 모듈
->>>>>>> feature/dns
 │   ├── utils.py           # (향후 구현) 유틸리티 함수들
 │   └── config.py          # 설정 관리
 ├── app.py                 # 명령행 인터페이스
@@ -174,10 +160,6 @@ network_monitor/
 
 ## 향후 개발 계획
 
-<<<<<<< HEAD
-- DNS 조회 기능 구현
-=======
->>>>>>> feature/dns
 - 웹 인터페이스 개발
 - 주기적 모니터링 및 알림 기능
 - 결과 저장 및 리포팅 기능
