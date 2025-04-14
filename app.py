@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 from network_monitor.ping_monitor import ping_host, ping_multiple_hosts
 from network_monitor.port_scanner import scan_host, get_common_ports
+<<<<<<< HEAD
+=======
+from network_monitor.dns_lookup import dns_lookup, reverse_dns_lookup
+>>>>>>> feature/dns
 import argparse
 
 def main():
@@ -19,6 +23,24 @@ def main():
     scan_parser.add_argument('-p', '--ports', help='Port range to scan (e.g. 1-1024)')
     scan_parser.add_argument('--common', action='store_true', help='Scan only common ports')
     scan_parser.add_argument('-t', '--timeout', type=float, default=0.5, help='Timeout in seconds for each port')
+<<<<<<< HEAD
+=======
+    
+    # DNS 조회 명령 설정
+    dns_parser = subparsers.add_parser('dns', help='Perform DNS lookups')
+    dns_subparsers = dns_parser.add_subparsers(dest='dns_command', help='DNS command to run')
+    
+    # 정방향 DNS 조회
+    lookup_parser = dns_subparsers.add_parser('lookup', help='Lookup DNS records for a domain')
+    lookup_parser.add_argument('domain', help='Domain to lookup')
+    lookup_parser.add_argument('-t', '--type', default='A', help='Record type (A, AAAA, MX, NS, TXT, SOA, CNAME)')
+    lookup_parser.add_argument('--timeout', type=float, default=2.0, help='Timeout in seconds')
+    
+    # 역방향 DNS 조회
+    reverse_parser = dns_subparsers.add_parser('reverse', help='Perform reverse DNS lookup for an IP address')
+    reverse_parser.add_argument('ip', help='IP address to lookup')
+    reverse_parser.add_argument('--timeout', type=float, default=2.0, help='Timeout in seconds')
+>>>>>>> feature/dns
     
     args = parser.parse_args()
     
@@ -75,7 +97,11 @@ def main():
             print(f"Port range: {result['start_port']}-{result['end_port']}")
             print(f"Open ports: {result['open_port_count']}/{result['total_ports_scanned']}")
             print(f"Scan completed in {result['scan_time']:.2f} seconds")
+<<<<<<< HEAD
             
+=======
+
+>>>>>>> feature/dns
             if result['open_ports']:
                 print("\nOpen Ports:")
                 for port_info in sorted(result['open_ports'], key=lambda x: x['port']):
@@ -97,6 +123,82 @@ def main():
                     print(f"  {port_info['port']}/tcp - {port_info['service']} "
                           f"({port_info['response_time']:.4f}s)")
     
+<<<<<<< HEAD
+=======
+    elif args.command == 'dns':
+        if args.dns_command == 'lookup':
+            result = dns_lookup(args.domain, args.type, args.timeout)
+            
+            print(f"\nDNS Lookup Results for {result['domain']} ({result['record_type']} records):")
+            
+            if result['success']:
+                print(f"Found {result['record_count']} records in {result['response_time']:.4f} seconds")
+                
+                if result['record_type'] == 'A' or result['record_type'] == 'AAAA':
+                    print("\nIP Addresses:")
+                    for record in result['records']:
+                        print(f"  {record['value']} (TTL: {record['ttl']}s)")
+                        
+                elif result['record_type'] == 'MX':
+                    print("\nMail Servers:")
+                    # 우선순위에 따라 정렬
+                    for record in sorted(result['records'], key=lambda x: x['preference']):
+                        print(f"  {record['value']} (Preference: {record['preference']}, TTL: {record['ttl']}s)")
+                        
+                elif result['record_type'] == 'NS':
+                    print("\nName Servers:")
+                    for record in result['records']:
+                        print(f"  {record['value']} (TTL: {record['ttl']}s)")
+                        
+                elif result['record_type'] == 'TXT':
+                    print("\nTXT Records:")
+                    for record in result['records']:
+                        print(f"  {record['value']} (TTL: {record['ttl']}s)")
+                        
+                elif result['record_type'] == 'SOA':
+                    print("\nSOA Record:")
+                    for record in result['records']:
+                        print(f"  Primary NS: {record['mname']}")
+                        print(f"  Email: {record['rname']}")
+                        print(f"  Serial: {record['serial']}")
+                        print(f"  Refresh: {record['refresh']}s")
+                        print(f"  Retry: {record['retry']}s")
+                        print(f"  Expire: {record['expire']}s")
+                        print(f"  Minimum TTL: {record['minimum']}s")
+                        print(f"  TTL: {record['ttl']}s")
+                        
+                elif result['record_type'] == 'CNAME':
+                    print("\nCanonical Names:")
+                    for record in result['records']:
+                        print(f"  {record['value']} (TTL: {record['ttl']}s)")
+                        
+                else:
+                    print("\nRecords:")
+                    for record in result['records']:
+                        print(f"  {record['value']} (TTL: {record['ttl']}s)")
+            else:
+                print(f"Error: {result['error']}")
+                
+        elif args.dns_command == 'reverse':
+            result = reverse_dns_lookup(args.ip, args.timeout)
+            
+            print(f"\nReverse DNS Lookup Results for {result['ip_address']}:")
+            
+            if result['success']:
+                print(f"Found hostname in {result['response_time']:.4f} seconds")
+                print(f"Hostname: {result['hostname']}")
+                
+                if result['aliases'] and len(result['aliases']) > 0:
+                    print("Aliases:")
+                    for alias in result['aliases']:
+                        print(f"  {alias}")
+            else:
+                print(f"Error: {result['error']}")
+                
+        else:
+            dns_parser.print_help()
+    
+>>>>>>> feature/dns
     else:
         parser.print_help()
 
