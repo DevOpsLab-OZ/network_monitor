@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 from network_monitor.ping_monitor import ping_host, ping_multiple_hosts
 from network_monitor.port_scanner import scan_host, get_common_ports
-<<<<<<< HEAD
-=======
 from network_monitor.dns_lookup import dns_lookup, reverse_dns_lookup
->>>>>>> feature/dns
 import argparse
 
 def main():
@@ -23,8 +20,6 @@ def main():
     scan_parser.add_argument('-p', '--ports', help='Port range to scan (e.g. 1-1024)')
     scan_parser.add_argument('--common', action='store_true', help='Scan only common ports')
     scan_parser.add_argument('-t', '--timeout', type=float, default=0.5, help='Timeout in seconds for each port')
-<<<<<<< HEAD
-=======
     
     # DNS 조회 명령 설정
     dns_parser = subparsers.add_parser('dns', help='Perform DNS lookups')
@@ -40,7 +35,6 @@ def main():
     reverse_parser = dns_subparsers.add_parser('reverse', help='Perform reverse DNS lookup for an IP address')
     reverse_parser.add_argument('ip', help='IP address to lookup')
     reverse_parser.add_argument('--timeout', type=float, default=2.0, help='Timeout in seconds')
->>>>>>> feature/dns
     
     args = parser.parse_args()
     
@@ -97,11 +91,7 @@ def main():
             print(f"Port range: {result['start_port']}-{result['end_port']}")
             print(f"Open ports: {result['open_port_count']}/{result['total_ports_scanned']}")
             print(f"Scan completed in {result['scan_time']:.2f} seconds")
-<<<<<<< HEAD
-            
-=======
 
->>>>>>> feature/dns
             if result['open_ports']:
                 print("\nOpen Ports:")
                 for port_info in sorted(result['open_ports'], key=lambda x: x['port']):
@@ -123,8 +113,6 @@ def main():
                     print(f"  {port_info['port']}/tcp - {port_info['service']} "
                           f"({port_info['response_time']:.4f}s)")
     
-<<<<<<< HEAD
-=======
     elif args.command == 'dns':
         if args.dns_command == 'lookup':
             result = dns_lookup(args.domain, args.type, args.timeout)
@@ -198,7 +186,6 @@ def main():
         else:
             dns_parser.print_help()
     
->>>>>>> feature/dns
     else:
         parser.print_help()
 
