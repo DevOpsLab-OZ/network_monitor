@@ -13,12 +13,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# 필요한 Python 패키지 설치
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
 # 애플리케이션 코드 복사
 COPY . .
+
+# Flask와 Werkzeug 특정 버전 설치
+RUN pip install --no-cache-dir flask==2.0.3 werkzeug==2.0.3
+
+# 나머지 패키지 설치 (Flask와 Werkzeug 제외)
+RUN pip install --no-cache-dir ping3==4.0.3 dnspython==2.3.0 requests==2.28.2 pyyaml>=6.0
 
 # 포트 노출 (Flask 웹 서버용)
 EXPOSE 5000
