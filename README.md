@@ -42,12 +42,20 @@
   - 문제 발생 및 복구 시 자동 알림
   - YAML 기반 설정 파일로 쉬운 구성 관리
 
+### feature/docker
+- **Docker 컨테이너화**:
+  - 애플리케이션의 컨테이너화로 쉬운 배포 및 실행
+  - Docker Compose를 통한 웹 인터페이스와 모니터링 서비스 통합 실행
+  - 다양한 환경에서 일관된 실행 환경 제공
+  - 호스트 머신과의 네트워크 연동 지원
+
 ## 설치 방법
 
 ### 요구사항
 
 - Python 3.6 이상
 - pip (Python 패키지 관리자)
+- Docker 및 Docker Compose (Docker를 이용한 실행 시)
 
 ### 설치 단계
 
@@ -223,6 +231,67 @@ alerts:
     enabled: true
 ```
 
+## Docker를 이용한 실행 방법
+
+### Docker 이미지 빌드 및 실행
+
+1. Docker 이미지 빌드:
+   ```bash
+   docker build -t network-monitor .
+   ```
+
+2. Docker 컨테이너 실행 (웹 인터페이스):
+   ```bash
+   docker run -p 5000:5000 network-monitor
+   ```
+
+3. Docker 컨테이너 실행 (모니터링 서비스):
+   ```bash
+   docker run network-monitor python monitor.py
+   ```
+
+### Docker Compose를 이용한 실행
+
+웹 인터페이스와 모니터링 서비스를 함께 실행하려면:
+
+```bash
+docker-compose up
+```
+
+백그라운드에서 실행하려면:
+
+```bash
+docker-compose up -d
+```
+
+실행 중인 서비스 확인:
+
+```bash
+docker-compose ps
+```
+
+서비스 중지:
+
+```bash
+docker-compose down
+```
+
+### 컨테이너 내부에서 명령행 도구 사용
+
+```bash
+docker run network-monitor python app.py ping google.com
+docker run network-monitor python app.py scan localhost --common
+docker run network-monitor python app.py dns lookup google.com -t A
+```
+
+### 주의사항
+
+- 컨테이너 내부에서 localhost를 스캔하면 호스트 머신이 아닌 컨테이너 자체를 스캔합니다.
+- 호스트 머신을 스캔하려면 Docker의 호스트 네트워크 모드를 사용하세요:
+  ```bash
+  docker run --network host network-monitor python app.py scan localhost
+  ```
+
 ## 프로젝트 구조
 
 ```
@@ -239,6 +308,9 @@ network_monitor/
 ├── monitor.py             # 주기적 모니터링 및 알림
 ├── templates/             # 웹 템플릿 디렉토리
 │   └── index.html         # 메인 웹 페이지
+├── Dockerfile             # Docker 이미지 빌드 설정
+├── docker-compose.yml     # Docker Compose 구성 파일
+├── .dockerignore          # Docker 빌드 제외 파일 목록
 ├── monitor_config.yaml    # 모니터링 설정 파일
 ├── monitor.log            # 모니터링 로그 파일
 ├── requirements.txt       # 필요한 패키지 목록
@@ -251,7 +323,7 @@ network_monitor/
 - 네트워크 트래픽 분석 기능
 - 더 풍부한 시각화 및 대시보드
 - API 엔드포인트 제공
-- Docker 컨테이너 지원
+- 테스트 코드 작성 및 CI/CD 파이프라인 구축
 
 ## 기여 방법
 
