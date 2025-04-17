@@ -255,25 +255,25 @@ alerts:
 웹 인터페이스와 모니터링 서비스를 함께 실행하려면:
 
 ```bash
-docker-compose up
+docker compose up
 ```
 
 백그라운드에서 실행하려면:
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 실행 중인 서비스 확인:
 
 ```bash
-docker-compose ps
+docker compose ps
 ```
 
 서비스 중지:
 
 ```bash
-docker-compose down
+docker compose down
 ```
 
 ### 컨테이너 내부에서 명령행 도구 사용
