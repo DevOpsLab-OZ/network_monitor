@@ -1,0 +1,22 @@
+version: '3'
+
+services:
+  # 웹 인터페이스 서비스
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./:/app
+    restart: unless-stopped
+    command: python web_app.py
+
+  # 모니터링 서비스 (백그라운드로 실행)
+  monitor:
+    build: .
+    volumes:
+      - ./:/app
+    restart: unless-stopped
+    command: python monitor.py
+    depends_on:
+      - web
