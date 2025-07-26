@@ -63,7 +63,7 @@ Python을 사용한 종합적인 네트워크 모니터링 도구입니다.
 
 1. 저장소 클론 또는 다운로드:
    ```bash
-   git clone https://github.com/DevOpsLab-OZ/network-monitor.git
+   git clone https://github.com/DevOpsLab-OZ/network_monitor.git
    cd network-monitor
    ```
 
