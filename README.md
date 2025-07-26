@@ -51,6 +51,15 @@ Python을 사용한 종합적인 네트워크 모니터링 도구입니다.
   - 다양한 환경에서 일관된 실행 환경 제공
   - 호스트 머신과의 네트워크 연동 지원
 
+### feature/servers
+- **네트워크 서버 구현**:
+  - TCP 에코 서버 (단일/멀티 클라이언트 지원)
+  - UDP 에코 서버
+  - 파일 전송 서버 (업로드 기능)
+  - CLI 통합 (`python app.py server` 명령어)
+  - Docker Compose 환경에서 서비스 실행
+  - 기존 클라이언트 도구와의 통합 테스트 완료
+
 ## 설치 방법
 
 ### 요구사항
@@ -168,6 +177,60 @@ python app.py dns reverse 8.8.8.8
 ```bash
 # 타임아웃 설정
 python app.py dns reverse 1.1.1.1 --timeout 3.0
+```
+
+#### 서버 실행
+
+네트워크 서버를 실행하려면:
+
+##### TCP 에코 서버
+
+```bash
+python app.py server tcp-echo
+```
+
+옵션:
+- `--host`: 바인딩할 호스트 (기본값: localhost)
+- `--port`: 바인딩할 포트 (기본값: 8080)
+- `--multi`: 멀티 클라이언트 지원 활성화
+
+예시:
+```bash
+# 멀티 클라이언트 지원으로 포트 9000에서 실행
+python app.py server tcp-echo --host 0.0.0.0 --port 9000 --multi
+```
+
+##### UDP 에코 서버
+
+```bash
+python app.py server udp-echo
+```
+
+옵션:
+- `--host`: 바인딩할 호스트 (기본값: localhost)
+- `--port`: 바인딩할 포트 (기본값: 8081)
+
+예시:
+```bash
+# 모든 인터페이스에서 포트 9001로 실행
+python app.py server udp-echo --host 0.0.0.0 --port 9001
+```
+
+##### 파일 전송 서버
+
+```bash
+python app.py server file-transfer
+```
+
+옵션:
+- `--host`: 바인딩할 호스트 (기본값: localhost)
+- `--port`: 바인딩할 포트 (기본값: 8082)
+- `--upload-dir`: 업로드 파일 저장 디렉토리 (기본값: uploads)
+
+예시:
+```bash
+# 포트 9002에서 실행, 파일을 /tmp/uploads에 저장
+python app.py server file-transfer --host 0.0.0.0 --port 9002 --upload-dir /tmp/uploads
 ```
 
 ### 웹 인터페이스
