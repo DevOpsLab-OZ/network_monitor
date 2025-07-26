@@ -20,3 +20,34 @@ services:
     command: python monitor.py
     depends_on:
       - web
+
+  # TCP 에코 서버
+  tcp-echo:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./:/app
+    restart: unless-stopped
+    command: python app.py server tcp-echo --host 0.0.0.0 --port 8080 --multi
+
+  # UDP 에코 서버
+  udp-echo:
+    build: .
+    ports:
+      - "8081:8081/udp"
+    volumes:
+      - ./:/app
+    restart: unless-stopped
+    command: python app.py server udp-echo --host 0.0.0.0 --port 8081
+
+  # 파일 전송 서버
+  file-transfer:
+    build: .
+    ports:
+      - "8082:8082"
+    volumes:
+      - ./:/app
+      - ./uploads:/app/uploads
+    restart: unless-stopped
+    command: python app.py server file-transfer --host 0.0.0.0 --port 8082
