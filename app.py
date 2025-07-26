@@ -2,6 +2,9 @@
 from network_monitor.ping_monitor import ping_host, ping_multiple_hosts
 from network_monitor.port_scanner import scan_host, get_common_ports
 from network_monitor.dns_lookup import dns_lookup, reverse_dns_lookup
+from network_monitor.tcp_server import run_tcp_echo_server
+from network_monitor.udp_server import run_udp_echo_server
+from network_monitor.file_server import run_file_transfer_server
 import argparse
 
 def main():
@@ -35,6 +38,27 @@ def main():
     reverse_parser = dns_subparsers.add_parser('reverse', help='Perform reverse DNS lookup for an IP address')
     reverse_parser.add_argument('ip', help='IP address to lookup')
     reverse_parser.add_argument('--timeout', type=float, default=2.0, help='Timeout in seconds')
+    
+    # 서버 명령 설정
+    server_parser = subparsers.add_parser('server', help='Run various servers')
+    server_subparsers = server_parser.add_subparsers(dest='server_command', help='Server type to run')
+    
+    # TCP 에코 서버
+    tcp_parser = server_subparsers.add_parser('tcp-echo', help='Run TCP echo server')
+    tcp_parser.add_argument('--host', default='localhost', help='Host to bind to (default: localhost)')
+    tcp_parser.add_argument('--port', type=int, default=8080, help='Port to bind to (default: 8080)')
+    tcp_parser.add_argument('--multi', action='store_true', help='Enable multi-client support')
+    
+    # UDP 에코 서버
+    udp_parser = server_subparsers.add_parser('udp-echo', help='Run UDP echo server')
+    udp_parser.add_argument('--host', default='localhost', help='Host to bind to (default: localhost)')
+    udp_parser.add_argument('--port', type=int, default=8081, help='Port to bind to (default: 8081)')
+    
+    # 파일 전송 서버
+    file_parser = server_subparsers.add_parser('file-transfer', help='Run file transfer server')
+    file_parser.add_argument('--host', default='localhost', help='Host to bind to (default: localhost)')
+    file_parser.add_argument('--port', type=int, default=8082, help='Port to bind to (default: 8082)')
+    file_parser.add_argument('--upload-dir', default='uploads', help='Directory to store uploaded files (default: uploads)')
     
     args = parser.parse_args()
     
@@ -185,6 +209,25 @@ def main():
                 
         else:
             dns_parser.print_help()
+    
+    elif args.command == 'server':
+        if args.server_command == 'tcp-echo':
+            print(f"Starting TCP Echo Server on {args.host}:{args.port}")
+            if args.multi:
+                print("Multi-client mode enabled")
+            run_tcp_echo_server(args.host, args.port, args.multi)
+            
+        elif args.server_command == 'udp-echo':
+            print(f"Starting UDP Echo Server on {args.host}:{args.port}")
+            run_udp_echo_server(args.host, args.port)
+            
+        elif args.server_command == 'file-transfer':
+            print(f"Starting File Transfer Server on {args.host}:{args.port}")
+            print(f"Upload directory: {args.upload_dir}")
+            run_file_transfer_server(args.host, args.port, args.upload_dir)
+            
+        else:
+            server_parser.print_help()
     
     else:
         parser.print_help()
