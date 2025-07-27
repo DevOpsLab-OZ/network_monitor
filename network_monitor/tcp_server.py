@@ -2,22 +2,34 @@ import socket
 import threading
 import time
 from datetime import datetime
+from .socket_options import AdvancedSocketOptions
 
 class TCPEchoServer:
-    def __init__(self, host='localhost', port=8080):
+    def __init__(self, host='localhost', port=8080, use_advanced_options=True):
         self.host = host
         self.port = port
         self.socket = None
         self.running = False
         self.clients = []
+        self.use_advanced_options = use_advanced_options
         
     def start_single_client_server(self):
         """단일 클라이언트 TCP 에코 서버 시작"""
         try:
-            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self.socket.bind((self.host, self.port))
-            self.socket.listen(1)
+            if self.use_advanced_options:
+                self.socket = AdvancedSocketOptions.create_optimized_server_socket(
+                    self.host, 
+                    self.port, 
+                    backlog=1,
+                    keepalive=True,
+                    nodelay=True
+                )
+                print("Advanced socket options enabled: SO_REUSEADDR, SO_KEEPALIVE, TCP_NODELAY")
+            else:
+                self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                self.socket.bind((self.host, self.port))
+                self.socket.listen(1)
             self.running = True
             
             print(f"TCP Echo Server (Single Client) started on {self.host}:{self.port}")
@@ -43,10 +55,20 @@ class TCPEchoServer:
     def start_multi_client_server(self):
         """멀티 클라이언트 TCP 에코 서버 시작"""
         try:
-            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self.socket.bind((self.host, self.port))
-            self.socket.listen(5)
+            if self.use_advanced_options:
+                self.socket = AdvancedSocketOptions.create_optimized_server_socket(
+                    self.host, 
+                    self.port, 
+                    backlog=5,
+                    keepalive=True,
+                    nodelay=False  # 멀티 클라이언트에서는 처리량 우선
+                )
+                print("Advanced socket options enabled: SO_REUSEADDR, SO_KEEPALIVE")
+            else:
+                self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                self.socket.bind((self.host, self.port))
+                self.socket.listen(5)
             self.running = True
             
             print(f"TCP Echo Server (Multi Client) started on {self.host}:{self.port}")
@@ -79,6 +101,13 @@ class TCPEchoServer:
     def _handle_client(self, client_socket, client_address):
         """클라이언트 연결 처리"""
         try:
+            # 클라이언트 소켓에도 Keep-alive 설정 (서버가 고급 옵션 사용 시)
+            if self.use_advanced_options:
+                client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                # 소켓 옵션 정보 출력
+                options = AdvancedSocketOptions.get_socket_options(client_socket)
+                print(f"Client {client_address} socket options: SO_KEEPALIVE={options.get('SO_KEEPALIVE', 'N/A')}")
+            
             while self.running:
                 data = client_socket.recv(1024)
                 if not data:
@@ -105,9 +134,9 @@ class TCPEchoServer:
             self.socket.close()
         print("Server stopped")
 
-def run_tcp_echo_server(host='localhost', port=8080, multi_client=False):
+def run_tcp_echo_server(host='localhost', port=8080, multi_client=False, advanced_options=False):
     """TCP 에코 서버 실행"""
-    server = TCPEchoServer(host, port)
+    server = TCPEchoServer(host, port, use_advanced_options=advanced_options)
     
     try:
         if multi_client:
@@ -125,7 +154,8 @@ if __name__ == "__main__":
     parser.add_argument('--host', default='localhost', help='Host to bind to')
     parser.add_argument('--port', type=int, default=8080, help='Port to bind to')
     parser.add_argument('--multi', action='store_true', help='Enable multi-client support')
+    parser.add_argument('--advanced', action='store_true', help='Use advanced socket options (SO_KEEPALIVE, etc.)')
     
     args = parser.parse_args()
     
-    run_tcp_echo_server(args.host, args.port, args.multi)
+    run_tcp_echo_server(args.host, args.port, args.multi, args.advanced)
