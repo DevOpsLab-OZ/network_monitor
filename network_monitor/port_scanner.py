@@ -4,8 +4,9 @@ import time
 import select
 from .config import DEFAULT_PORT_RANGE, DEFAULT_TIMEOUT
 from .socket_options import NonBlockingSocketManager, AdvancedSocketOptions
+from .timeout_manager import global_connection_manager, AdaptiveTimeoutManager
 
-def scan_port(host, port, timeout=DEFAULT_TIMEOUT, use_advanced_options=False):
+def scan_port(host, port, timeout=DEFAULT_TIMEOUT, use_advanced_options=False, use_adaptive_timeout=False):
     """
     지정된 호스트의 특정 포트가 열려 있는지 확인합니다.
     
@@ -14,14 +15,29 @@ def scan_port(host, port, timeout=DEFAULT_TIMEOUT, use_advanced_options=False):
         port (int): 스캔할 포트 번호
         timeout (float): 연결 타임아웃 시간(초)
         use_advanced_options (bool): 고급 소켓 옵션 사용 여부
+        use_adaptive_timeout (bool): 적응형 타임아웃 사용 여부
         
     Returns:
         tuple: (port, is_open, service_name, response_time)
     """
-    if use_advanced_options:
-        return scan_port_nonblocking(host, port, timeout)
+    # 적응형 타임아웃 사용 시 호스트별 최적 타임아웃 계산
+    if use_adaptive_timeout:
+        adaptive_timeout = global_connection_manager.get_timeout_for_host(host)
+        actual_timeout = min(timeout, adaptive_timeout) if timeout else adaptive_timeout
     else:
-        return scan_port_basic(host, port, timeout)
+        actual_timeout = timeout
+    
+    if use_advanced_options:
+        result = scan_port_nonblocking(host, port, actual_timeout)
+    else:
+        result = scan_port_basic(host, port, actual_timeout)
+    
+    # 적응형 타임아웃 사용 시 결과 기록
+    if use_adaptive_timeout:
+        port, is_open, service_name, response_time = result
+        global_connection_manager.record_host_response(host, response_time, is_open)
+    
+    return result
 
 
 def scan_port_basic(host, port, timeout=DEFAULT_TIMEOUT):
@@ -110,7 +126,8 @@ def get_service_name(port):
     except (socket.error, OSError):
         return "unknown"
 
-def scan_host(host, port_range=DEFAULT_PORT_RANGE, timeout=DEFAULT_TIMEOUT, max_workers=50, use_advanced_options=False):
+def scan_host(host, port_range=DEFAULT_PORT_RANGE, timeout=DEFAULT_TIMEOUT, max_workers=50, 
+              use_advanced_options=False, use_adaptive_timeout=False):
     """
     지정된 호스트의 포트 범위를 스캔합니다.
     
@@ -120,6 +137,7 @@ def scan_host(host, port_range=DEFAULT_PORT_RANGE, timeout=DEFAULT_TIMEOUT, max_
         timeout (float): 연결 타임아웃 시간(초)
         max_workers (int): 동시에 실행할 최대 스레드 수
         use_advanced_options (bool): 고급 소켓 옵션 사용 여부
+        use_adaptive_timeout (bool): 적응형 타임아웃 사용 여부
         
     Returns:
         dict: 포트 스캔 결과를 포함하는 딕셔너리
@@ -128,15 +146,31 @@ def scan_host(host, port_range=DEFAULT_PORT_RANGE, timeout=DEFAULT_TIMEOUT, max_
     ports_to_scan = range(start_port, end_port + 1)
     open_ports = []
     
-    scan_method = "논블로킹 소켓" if use_advanced_options else "기본 소켓"
+    # 스캔 방법 표시
+    methods = []
+    if use_advanced_options:
+        methods.append("논블로킹 소켓")
+    else:
+        methods.append("기본 소켓")
+    
+    if use_adaptive_timeout:
+        methods.append("적응형 타임아웃")
+    
+    scan_method = " + ".join(methods)
     print(f"Scanning {host} for open ports from {start_port} to {end_port}... ({scan_method})")
+    
+    # 적응형 타임아웃 사용 시 초기 타임아웃 정보 표시
+    if use_adaptive_timeout:
+        initial_timeout = global_connection_manager.get_timeout_for_host(host)
+        print(f"Initial adaptive timeout for {host}: {initial_timeout:.3f}s")
+    
     start_time = time.time()
     
     # 스레드 풀을 사용하여 병렬로 포트 스캔
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         # scan_port 함수에 인자를 전달하여 실행
         scan_results = list(executor.map(
-            lambda p: scan_port(host, p, timeout, use_advanced_options), 
+            lambda p: scan_port(host, p, timeout, use_advanced_options, use_adaptive_timeout), 
             ports_to_scan
         ))
     
@@ -152,7 +186,8 @@ def scan_host(host, port_range=DEFAULT_PORT_RANGE, timeout=DEFAULT_TIMEOUT, max_
     
     total_time = time.time() - start_time
     
-    return {
+    # 적응형 타임아웃 사용 시 통계 정보 포함
+    result = {
         'host': host,
         'start_port': start_port,
         'end_port': end_port,
@@ -162,6 +197,15 @@ def scan_host(host, port_range=DEFAULT_PORT_RANGE, timeout=DEFAULT_TIMEOUT, max_
         'scan_time': total_time,
         'scan_method': scan_method
     }
+    
+    if use_adaptive_timeout:
+        timeout_stats = global_connection_manager.get_host_manager(host).get_timeout_stats()
+        result['timeout_stats'] = timeout_stats
+        print(f"Adaptive timeout stats - Avg response: {timeout_stats['avg_response_time']:.3f}s, "
+              f"Success rate: {timeout_stats['success_rate']:.2%}, "
+              f"Final timeout: {timeout_stats['current_timeout']:.3f}s")
+    
+    return result
 
 def get_common_ports():
     """
