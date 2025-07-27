@@ -134,9 +134,9 @@ class TCPEchoServer:
             self.socket.close()
         print("Server stopped")
 
-def run_tcp_echo_server(host='localhost', port=8080, multi_client=False):
+def run_tcp_echo_server(host='localhost', port=8080, multi_client=False, advanced_options=False):
     """TCP 에코 서버 실행"""
-    server = TCPEchoServer(host, port)
+    server = TCPEchoServer(host, port, use_advanced_options=advanced_options)
     
     try:
         if multi_client:
@@ -154,7 +154,8 @@ if __name__ == "__main__":
     parser.add_argument('--host', default='localhost', help='Host to bind to')
     parser.add_argument('--port', type=int, default=8080, help='Port to bind to')
     parser.add_argument('--multi', action='store_true', help='Enable multi-client support')
+    parser.add_argument('--advanced', action='store_true', help='Use advanced socket options (SO_KEEPALIVE, etc.)')
     
     args = parser.parse_args()
     
-    run_tcp_echo_server(args.host, args.port, args.multi)
+    run_tcp_echo_server(args.host, args.port, args.multi, args.advanced)

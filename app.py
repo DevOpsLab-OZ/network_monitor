@@ -48,6 +48,7 @@ def main():
     tcp_parser.add_argument('--host', default='localhost', help='Host to bind to (default: localhost)')
     tcp_parser.add_argument('--port', type=int, default=8080, help='Port to bind to (default: 8080)')
     tcp_parser.add_argument('--multi', action='store_true', help='Enable multi-client support')
+    tcp_parser.add_argument('--advanced', action='store_true', help='Use advanced socket options (SO_KEEPALIVE, TCP_NODELAY)')
     
     # UDP 에코 서버
     udp_parser = server_subparsers.add_parser('udp-echo', help='Run UDP echo server')
@@ -215,7 +216,9 @@ def main():
             print(f"Starting TCP Echo Server on {args.host}:{args.port}")
             if args.multi:
                 print("Multi-client mode enabled")
-            run_tcp_echo_server(args.host, args.port, args.multi)
+            if args.advanced:
+                print("Advanced socket options enabled")
+            run_tcp_echo_server(args.host, args.port, args.multi, args.advanced)
             
         elif args.server_command == 'udp-echo':
             print(f"Starting UDP Echo Server on {args.host}:{args.port}")
