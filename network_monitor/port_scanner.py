@@ -1,9 +1,11 @@
 import socket
 from concurrent.futures import ThreadPoolExecutor
 import time
+import select
 from .config import DEFAULT_PORT_RANGE, DEFAULT_TIMEOUT
+from .socket_options import NonBlockingSocketManager, AdvancedSocketOptions
 
-def scan_port(host, port, timeout=DEFAULT_TIMEOUT):
+def scan_port(host, port, timeout=DEFAULT_TIMEOUT, use_advanced_options=False):
     """
     지정된 호스트의 특정 포트가 열려 있는지 확인합니다.
     
@@ -11,10 +13,19 @@ def scan_port(host, port, timeout=DEFAULT_TIMEOUT):
         host (str): 스캔할 호스트 이름 또는 IP 주소
         port (int): 스캔할 포트 번호
         timeout (float): 연결 타임아웃 시간(초)
+        use_advanced_options (bool): 고급 소켓 옵션 사용 여부
         
     Returns:
-        tuple: (port, is_open, service_name)
+        tuple: (port, is_open, service_name, response_time)
     """
+    if use_advanced_options:
+        return scan_port_nonblocking(host, port, timeout)
+    else:
+        return scan_port_basic(host, port, timeout)
+
+
+def scan_port_basic(host, port, timeout=DEFAULT_TIMEOUT):
+    """기본 블로킹 소켓을 사용한 포트 스캔"""
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.settimeout(timeout)
     
@@ -39,7 +50,67 @@ def scan_port(host, port, timeout=DEFAULT_TIMEOUT):
     finally:
         sock.close()
 
-def scan_host(host, port_range=DEFAULT_PORT_RANGE, timeout=DEFAULT_TIMEOUT, max_workers=50):
+
+def scan_port_nonblocking(host, port, timeout=DEFAULT_TIMEOUT):
+    """논블로킹 소켓을 사용한 고성능 포트 스캔"""
+    try:
+        # 고급 소켓 옵션으로 소켓 생성
+        sock = AdvancedSocketOptions.create_socket_with_options(
+            blocking=False,
+            reuse_addr=True,
+            nodelay=True
+        )
+        
+        start_time = time.time()
+        
+        # 논블로킹 연결 시도
+        try:
+            sock.connect((host, port))
+            # 즉시 연결되는 경우 (보통 localhost)
+            response_time = time.time() - start_time
+            service_name = get_service_name(port)
+            sock.close()
+            return (port, True, service_name, response_time)
+        except socket.error as e:
+            if e.errno not in (socket.errno.EINPROGRESS, socket.errno.EALREADY, socket.errno.EWOULDBLOCK):
+                # 연결 불가능한 경우
+                sock.close()
+                return (port, False, None, None)
+        
+        # select를 사용하여 연결 완료 대기
+        ready = select.select([], [sock], [sock], timeout)
+        
+        if ready[1] or ready[2]:  # 쓰기 가능하거나 에러 발생
+            # 연결 상태 확인
+            error = sock.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR)
+            response_time = time.time() - start_time
+            
+            if error == 0:
+                # 연결 성공
+                service_name = get_service_name(port)
+                sock.close()
+                return (port, True, service_name, response_time)
+            else:
+                # 연결 실패
+                sock.close()
+                return (port, False, None, None)
+        else:
+            # 타임아웃
+            sock.close()
+            return (port, False, None, None)
+            
+    except Exception:
+        return (port, False, None, None)
+
+
+def get_service_name(port):
+    """포트 번호에 대한 서비스 이름 조회"""
+    try:
+        return socket.getservbyport(port)
+    except (socket.error, OSError):
+        return "unknown"
+
+def scan_host(host, port_range=DEFAULT_PORT_RANGE, timeout=DEFAULT_TIMEOUT, max_workers=50, use_advanced_options=False):
     """
     지정된 호스트의 포트 범위를 스캔합니다.
     
@@ -48,6 +119,7 @@ def scan_host(host, port_range=DEFAULT_PORT_RANGE, timeout=DEFAULT_TIMEOUT, max_
         port_range (tuple): 스캔할 포트 범위 (시작, 끝)
         timeout (float): 연결 타임아웃 시간(초)
         max_workers (int): 동시에 실행할 최대 스레드 수
+        use_advanced_options (bool): 고급 소켓 옵션 사용 여부
         
     Returns:
         dict: 포트 스캔 결과를 포함하는 딕셔너리
@@ -56,14 +128,15 @@ def scan_host(host, port_range=DEFAULT_PORT_RANGE, timeout=DEFAULT_TIMEOUT, max_
     ports_to_scan = range(start_port, end_port + 1)
     open_ports = []
     
-    print(f"Scanning {host} for open ports from {start_port} to {end_port}...")
+    scan_method = "논블로킹 소켓" if use_advanced_options else "기본 소켓"
+    print(f"Scanning {host} for open ports from {start_port} to {end_port}... ({scan_method})")
     start_time = time.time()
     
     # 스레드 풀을 사용하여 병렬로 포트 스캔
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         # scan_port 함수에 인자를 전달하여 실행
         scan_results = list(executor.map(
-            lambda p: scan_port(host, p, timeout), 
+            lambda p: scan_port(host, p, timeout, use_advanced_options), 
             ports_to_scan
         ))
     
@@ -86,7 +159,8 @@ def scan_host(host, port_range=DEFAULT_PORT_RANGE, timeout=DEFAULT_TIMEOUT, max_
         'total_ports_scanned': len(ports_to_scan),
         'open_ports': open_ports,
         'open_port_count': len(open_ports),
-        'scan_time': total_time
+        'scan_time': total_time,
+        'scan_method': scan_method
     }
 
 def get_common_ports():
