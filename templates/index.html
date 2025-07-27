@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -126,7 +127,23 @@
                 <label for="scanTimeout">Timeout (seconds):</label>
                 <input type="number" id="scanTimeout" name="timeout" value="0.5" min="0.1" max="5" step="0.1">
                 
-                <button type="submit">Scan Ports</button>
+                <h3>Advanced Options</h3>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: inline-block; margin-right: 20px;">
+                        <input type="checkbox" id="advancedOptions" name="advanced" style="width: auto; margin-right: 5px;">
+                        Use Advanced Socket Options (Non-blocking)
+                    </label>
+                    <label style="display: inline-block; margin-right: 20px;">
+                        <input type="checkbox" id="adaptiveTimeout" name="adaptiveTimeout" style="width: auto; margin-right: 5px;">
+                        Adaptive Timeout
+                    </label>
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <button type="submit" style="margin-right: 10px;">Scan Ports</button>
+                    <button type="button" id="optimizeBtn" style="background-color: #e67e22; margin-right: 10px;">Auto Optimize</button>
+                    <button type="button" id="benchmarkBtn" style="background-color: #9b59b6;">Benchmark</button>
+                </div>
             </form>
             <div class="loading" id="scanLoading">Scanning ports...</div>
             <div class="result" id="scanResult"></div>
@@ -169,6 +186,22 @@
             </form>
             <div class="loading" id="dnsLoading">Performing DNS lookup...</div>
             <div class="result" id="dnsResult"></div>
+        </div>
+        
+        <div class="tool-section">
+            <h2>Server Status</h2>
+            <p>Monitor running Docker services and system status</p>
+            <button id="checkServersBtn" style="margin-bottom: 15px;">Check Server Status</button>
+            <div class="loading" id="serverLoading" style="display: none;">Checking server status...</div>
+            <div class="result" id="serverResult"></div>
+        </div>
+        
+        <div class="tool-section">
+            <h2>Monitoring Configuration</h2>
+            <p>View current monitoring settings and status</p>
+            <button id="checkMonitoringBtn" style="margin-bottom: 15px;">Check Monitoring Config</button>
+            <div class="loading" id="monitoringLoading" style="display: none;">Loading monitoring configuration...</div>
+            <div class="result" id="monitoringResult"></div>
         </div>
     </div>
     
@@ -271,6 +304,8 @@
             const startPort = document.getElementById('startPort').value;
             const endPort = document.getElementById('endPort').value;
             const timeout = document.getElementById('scanTimeout').value;
+            const advanced = document.getElementById('advancedOptions').checked;
+            const adaptiveTimeout = document.getElementById('adaptiveTimeout').checked;
             
             document.getElementById('scanResult').style.display = 'none';
             document.getElementById('scanLoading').style.display = 'block';
@@ -278,7 +313,9 @@
             let requestData = {
                 host: host,
                 scan_type: scanType,
-                timeout: parseFloat(timeout)
+                timeout: parseFloat(timeout),
+                advanced: advanced,
+                adaptive_timeout: adaptiveTimeout
             };
             
             if (scanType === 'range') {
@@ -307,7 +344,20 @@
                     }
                     
                     output += `Open ports: ${data.open_ports.length}/${data.total_ports_scanned}\n`;
-                    output += `Scan completed in ${data.scan_time.toFixed(2)} seconds\n\n`;
+                    output += `Scan completed in ${data.scan_time.toFixed(2)} seconds\n`;
+                    
+                    if (data.scan_method) {
+                        output += `Scan method: ${data.scan_method}\n`;
+                    }
+                    
+                    if (data.timeout_stats) {
+                        output += `Adaptive timeout stats:\n`;
+                        output += `  - Average response: ${data.timeout_stats.avg_response_time.toFixed(3)}s\n`;
+                        output += `  - Success rate: ${(data.timeout_stats.success_rate * 100).toFixed(1)}%\n`;
+                        output += `  - Final timeout: ${data.timeout_stats.current_timeout.toFixed(3)}s\n`;
+                    }
+                    
+                    output += `\n`;
                     
                     if (data.open_ports.length > 0) {
                         output += `Open Ports:\n`;
@@ -342,6 +392,293 @@
                 resultDiv.classList.add('error');
                 resultDiv.style.display = 'block';
                 document.getElementById('scanLoading').style.display = 'none';
+            });
+        });
+        
+        // Auto Optimize button
+        document.getElementById('optimizeBtn').addEventListener('click', function() {
+            const host = document.getElementById('scanHost').value;
+            if (!host) {
+                alert('Please enter a host to optimize for');
+                return;
+            }
+            
+            document.getElementById('scanResult').style.display = 'none';
+            document.getElementById('scanLoading').innerHTML = 'Auto-optimizing scan parameters...';
+            document.getElementById('scanLoading').style.display = 'block';
+            
+            fetch('/api/optimize', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ host: host }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                const resultDiv = document.getElementById('scanResult');
+                
+                if (data.success) {
+                    let output = `Auto-Optimization Results for ${data.host}:\n\n`;
+                    output += `Optimized Parameters:\n`;
+                    output += `  - Timeout: ${data.optimal_params.timeout}s\n`;
+                    output += `  - Workers: ${data.optimal_params.max_workers}\n`;
+                    output += `  - Advanced Options: ${data.optimal_params.use_advanced_options ? 'Enabled' : 'Disabled'}\n`;
+                    output += `  - Adaptive Timeout: ${data.optimal_params.use_adaptive_timeout ? 'Enabled' : 'Disabled'}\n\n`;
+                    
+                    output += `Scan Results:\n`;
+                    output += `Host: ${data.scan_result.host}\n`;
+                    output += `Open ports: ${data.scan_result.open_port_count}/${data.scan_result.total_ports_scanned}\n`;
+                    output += `Scan time: ${data.scan_result.scan_time.toFixed(2)}s\n`;
+                    output += `Method: ${data.scan_result.scan_method}\n\n`;
+                    
+                    if (data.scan_result.open_ports && data.scan_result.open_ports.length > 0) {
+                        output += `Open Ports:\n`;
+                        let table = '<table><tr><th>Port</th><th>Service</th><th>Response Time</th></tr>';
+                        data.scan_result.open_ports.sort((a, b) => a.port - b.port).forEach(port => {
+                            table += `<tr><td>${port.port}/tcp</td><td>${port.service}</td><td>${port.response_time.toFixed(4)}s</td></tr>`;
+                        });
+                        table += '</table>';
+                        output += table;
+                    }
+                    
+                    resultDiv.innerHTML = output;
+                    resultDiv.classList.remove('error');
+                } else {
+                    resultDiv.innerHTML = `Error: ${data.error}`;
+                    resultDiv.classList.add('error');
+                }
+                
+                resultDiv.style.display = 'block';
+                document.getElementById('scanLoading').style.display = 'none';
+                document.getElementById('scanLoading').innerHTML = 'Scanning ports...';
+            })
+            .catch(error => {
+                const resultDiv = document.getElementById('scanResult');
+                resultDiv.innerHTML = `Error: ${error.message}`;
+                resultDiv.classList.add('error');
+                resultDiv.style.display = 'block';
+                document.getElementById('scanLoading').style.display = 'none';
+                document.getElementById('scanLoading').innerHTML = 'Scanning ports...';
+            });
+        });
+        
+        // Benchmark button
+        document.getElementById('benchmarkBtn').addEventListener('click', function() {
+            const host = document.getElementById('scanHost').value;
+            if (!host) {
+                alert('Please enter a host to benchmark');
+                return;
+            }
+            
+            document.getElementById('scanResult').style.display = 'none';
+            document.getElementById('scanLoading').innerHTML = 'Running performance benchmark...';
+            document.getElementById('scanLoading').style.display = 'block';
+            
+            fetch('/api/benchmark', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ host: host }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                const resultDiv = document.getElementById('scanResult');
+                
+                if (data.success) {
+                    let output = `Performance Benchmark Results\n`;
+                    output += `${'='.repeat(60)}\n`;
+                    output += `Test Target: ${data.test_config.host}\n`;
+                    output += `Ports Tested: ${data.test_config.ports_tested}\n`;
+                    output += `Timeout: ${data.test_config.timeout}s\n`;
+                    output += `Iterations: ${data.test_config.iterations}\n\n`;
+                    
+                    output += `Fastest Method: ${data.fastest_method}\n\n`;
+                    
+                    output += `Method Performance Results:\n`;
+                    output += `${'-'.repeat(60)}\n`;
+                    
+                    for (const [method, stats] of Object.entries(data.benchmark_results)) {
+                        output += `\n${method}:\n`;
+                        output += `  Average time: ${stats.avg_time.toFixed(3)}s\n`;
+                        output += `  Min/Max: ${stats.min_time.toFixed(3)}s ~ ${stats.max_time.toFixed(3)}s\n`;
+                        output += `  Success rate: ${(stats.success_rate * 100).toFixed(1)}%\n`;
+                    }
+                    
+                    output += `\nSpeed Comparison (vs ${data.fastest_method}):\n`;
+                    output += `${'-'.repeat(40)}\n`;
+                    for (const [method, comparison] of Object.entries(data.performance_analysis.speed_comparison)) {
+                        output += `${method}: ${comparison.description}\n`;
+                    }
+                    
+                    if (data.performance_analysis.recommendations.length > 0) {
+                        output += `\nRecommendations:\n`;
+                        output += `${'-'.repeat(20)}\n`;
+                        data.performance_analysis.recommendations.forEach(rec => {
+                            output += `• ${rec}\n`;
+                        });
+                    }
+                    
+                    resultDiv.innerHTML = output;
+                    resultDiv.classList.remove('error');
+                } else {
+                    resultDiv.innerHTML = `Error: ${data.error}`;
+                    resultDiv.classList.add('error');
+                }
+                
+                resultDiv.style.display = 'block';
+                document.getElementById('scanLoading').style.display = 'none';
+                document.getElementById('scanLoading').innerHTML = 'Scanning ports...';
+            })
+            .catch(error => {
+                const resultDiv = document.getElementById('scanResult');
+                resultDiv.innerHTML = `Error: ${error.message}`;
+                resultDiv.classList.add('error');
+                resultDiv.style.display = 'block';
+                document.getElementById('scanLoading').style.display = 'none';
+                document.getElementById('scanLoading').innerHTML = 'Scanning ports...';
+            });
+        });
+        
+        // Server status check
+        document.getElementById('checkServersBtn').addEventListener('click', function() {
+            document.getElementById('serverResult').style.display = 'none';
+            document.getElementById('serverLoading').style.display = 'block';
+            
+            fetch('/api/server-status', {
+                method: 'GET',
+            })
+            .then(response => response.json())
+            .then(data => {
+                const resultDiv = document.getElementById('serverResult');
+                
+                if (data.success) {
+                    let output = `Server Status Report\n`;
+                    output += `${'='.repeat(50)}\n`;
+                    output += `Check Time: ${data.check_time}\n\n`;
+                    
+                    if (data.docker_services && data.docker_services.length > 0) {
+                        output += `Docker Services:\n`;
+                        output += `${'-'.repeat(30)}\n`;
+                        
+                        let table = '<table><tr><th>Service</th><th>Status</th><th>Port</th><th>Response</th></tr>';
+                        
+                        data.docker_services.forEach(service => {
+                            const statusColor = service.accessible ? 'green' : 'red';
+                            table += `<tr>`;
+                            table += `<td>${service.name}</td>`;
+                            table += `<td style="color: ${statusColor};">${service.accessible ? 'Running' : 'Down'}</td>`;
+                            table += `<td>${service.port}</td>`;
+                            table += `<td>${service.response_time ? service.response_time.toFixed(3) + 's' : 'N/A'}</td>`;
+                            table += `</tr>`;
+                        });
+                        table += '</table>';
+                        
+                        output += table;
+                    } else {
+                        output += `No Docker services detected.\n`;
+                    }
+                    
+                    output += `\n\nSystem Info:\n`;
+                    output += `${'-'.repeat(20)}\n`;
+                    output += `Web Server: Running (Port 5000)\n`;
+                    output += `Network Monitor: Active\n`;
+                    
+                    resultDiv.innerHTML = output;
+                    resultDiv.classList.remove('error');
+                } else {
+                    resultDiv.innerHTML = `Error: ${data.error}`;
+                    resultDiv.classList.add('error');
+                }
+                
+                resultDiv.style.display = 'block';
+                document.getElementById('serverLoading').style.display = 'none';
+            })
+            .catch(error => {
+                const resultDiv = document.getElementById('serverResult');
+                resultDiv.innerHTML = `Error: ${error.message}`;
+                resultDiv.classList.add('error');
+                resultDiv.style.display = 'block';
+                document.getElementById('serverLoading').style.display = 'none';
+            });
+        });
+        
+        // Monitoring configuration check
+        document.getElementById('checkMonitoringBtn').addEventListener('click', function() {
+            document.getElementById('monitoringResult').style.display = 'none';
+            document.getElementById('monitoringLoading').style.display = 'block';
+            
+            fetch('/api/monitoring-config', {
+                method: 'GET',
+            })
+            .then(response => response.json())
+            .then(data => {
+                const resultDiv = document.getElementById('monitoringResult');
+                
+                if (data.success) {
+                    let output = `Monitoring Configuration\n`;
+                    output += `${'='.repeat(50)}\n`;
+                    output += `Config File: ${data.config_file}\n`;
+                    output += `File Exists: ${data.config_exists ? 'Yes' : 'No'}\n\n`;
+                    
+                    if (data.config_exists && data.monitors) {
+                        output += `Configured Monitors:\n`;
+                        output += `${'-'.repeat(30)}\n`;
+                        
+                        let table = '<table><tr><th>Name</th><th>Type</th><th>Target</th><th>Interval</th><th>Threshold</th></tr>';
+                        
+                        data.monitors.forEach(monitor => {
+                            table += `<tr>`;
+                            table += `<td>${monitor.name}</td>`;
+                            table += `<td>${monitor.type}</td>`;
+                            table += `<td>${monitor.host}${monitor.port ? ':' + monitor.port : ''}</td>`;
+                            table += `<td>${monitor.check_interval}s</td>`;
+                            table += `<td>${monitor.alert_threshold}</td>`;
+                            table += `</tr>`;
+                        });
+                        table += '</table>';
+                        
+                        output += table;
+                        
+                        output += `\n\nAlert Settings:\n`;
+                        output += `${'-'.repeat(20)}\n`;
+                        if (data.alerts) {
+                            if (data.alerts.email && data.alerts.email.enabled) {
+                                output += `Email: Enabled (${data.alerts.email.recipient_email})\n`;
+                            }
+                            if (data.alerts.log && data.alerts.log.enabled) {
+                                output += `Log File: Enabled (${data.alerts.log.file})\n`;
+                            }
+                            if (data.alerts.console && data.alerts.console.enabled) {
+                                output += `Console: Enabled\n`;
+                            }
+                        }
+                    } else {
+                        output += `No monitoring configuration found.\n`;
+                        output += `Run 'python monitor.py' to create default config.\n`;
+                    }
+                    
+                    output += `\n\nTo edit configuration:\n`;
+                    output += `1. Edit monitor_config.yaml file\n`;
+                    output += `2. Restart monitoring service\n`;
+                    
+                    resultDiv.innerHTML = output;
+                    resultDiv.classList.remove('error');
+                } else {
+                    resultDiv.innerHTML = `Error: ${data.error}`;
+                    resultDiv.classList.add('error');
+                }
+                
+                resultDiv.style.display = 'block';
+                document.getElementById('monitoringLoading').style.display = 'none';
+            })
+            .catch(error => {
+                const resultDiv = document.getElementById('monitoringResult');
+                resultDiv.innerHTML = `Error: ${error.message}`;
+                resultDiv.classList.add('error');
+                resultDiv.style.display = 'block';
+                document.getElementById('monitoringLoading').style.display = 'none';
             });
         });
         
@@ -466,3 +803,4 @@
     </script>
 </body>
 </html>
+    
