@@ -5,6 +5,7 @@ from network_monitor.dns_lookup import dns_lookup, reverse_dns_lookup
 from network_monitor.tcp_server import run_tcp_echo_server
 from network_monitor.udp_server import run_udp_echo_server
 from network_monitor.file_server import run_file_transfer_server
+from network_monitor.performance_optimizer import PerformanceOptimizer, run_performance_benchmark
 import argparse
 
 def main():
@@ -23,6 +24,10 @@ def main():
     scan_parser.add_argument('-p', '--ports', help='Port range to scan (e.g. 1-1024)')
     scan_parser.add_argument('--common', action='store_true', help='Scan only common ports')
     scan_parser.add_argument('-t', '--timeout', type=float, default=0.5, help='Timeout in seconds for each port')
+    scan_parser.add_argument('--advanced', action='store_true', help='Use advanced socket options (non-blocking)')
+    scan_parser.add_argument('--adaptive-timeout', action='store_true', help='Use adaptive timeout based on network conditions')
+    scan_parser.add_argument('--optimize', action='store_true', help='Auto-optimize scan parameters for target host')
+    scan_parser.add_argument('--benchmark', action='store_true', help='Run performance benchmark')
     
     # DNS 조회 명령 설정
     dns_parser = subparsers.add_parser('dns', help='Perform DNS lookups')
@@ -76,6 +81,46 @@ def main():
                   f"Average = {result['avg_time']:.2f}ms")
     
     elif args.command == 'scan':
+        # 성능 벤치마크 실행
+        if args.benchmark:
+            print("성능 벤치마크를 실행합니다...")
+            run_performance_benchmark(args.host)
+            return
+        
+        # 자동 최적화 실행
+        if args.optimize:
+            print("스캔 파라미터를 자동 최적화합니다...")
+            optimal_params = PerformanceOptimizer.auto_optimize_scan_params(args.host)
+            
+            # 최적화된 파라미터로 스캔 실행
+            print(f"\n최적화된 설정으로 스캔을 시작합니다...")
+            if args.ports:
+                start_port, end_port = map(int, args.ports.split('-'))
+                result = scan_host(args.host, (start_port, end_port), 
+                                 optimal_params['timeout'],
+                                 max_workers=optimal_params['max_workers'],
+                                 use_advanced_options=optimal_params['use_advanced_options'],
+                                 use_adaptive_timeout=optimal_params['use_adaptive_timeout'])
+            else:
+                result = scan_host(args.host, 
+                                 timeout=optimal_params['timeout'],
+                                 max_workers=optimal_params['max_workers'],
+                                 use_advanced_options=optimal_params['use_advanced_options'],
+                                 use_adaptive_timeout=optimal_params['use_adaptive_timeout'])
+            
+            print(f"\n최적화된 스캔 완료:")
+            print(f"Host: {result['host']}")
+            print(f"Open ports: {result['open_port_count']}/{result['total_ports_scanned']}")
+            print(f"Scan time: {result['scan_time']:.2f}s")
+            print(f"Method: {result['scan_method']}")
+            
+            if result['open_ports']:
+                print("\nOpen Ports:")
+                for port_info in sorted(result['open_ports'], key=lambda x: x['port']):
+                    print(f"  {port_info['port']}/tcp - {port_info['service']} "
+                          f"({port_info['response_time']:.4f}s)")
+            return
+        
         # 포트 범위 결정
         if args.common:
             # 일반적인 포트만 스캔
@@ -85,7 +130,9 @@ def main():
             # 각 포트 개별적으로 스캔
             results = []
             for port in common_ports:
-                port_result = scan_host(args.host, (port, port), args.timeout)
+                port_result = scan_host(args.host, (port, port), args.timeout, 
+                                      use_advanced_options=args.advanced,
+                                      use_adaptive_timeout=args.adaptive_timeout)
                 if port_result['open_ports']:
                     results.extend(port_result['open_ports'])
             
@@ -109,7 +156,9 @@ def main():
                 print("Invalid port range. Format should be: start-end (e.g. 1-1024)")
                 return
             
-            result = scan_host(args.host, (start_port, end_port), args.timeout)
+            result = scan_host(args.host, (start_port, end_port), args.timeout,
+                              use_advanced_options=args.advanced,
+                              use_adaptive_timeout=args.adaptive_timeout)
             
             print("\nScan Results:")
             print(f"Host: {result['host']}")
@@ -124,7 +173,8 @@ def main():
                           f"({port_info['response_time']:.4f}s)")
         else:
             # 기본 포트 범위(1-1024) 사용
-            result = scan_host(args.host)
+            result = scan_host(args.host, use_advanced_options=args.advanced,
+                              use_adaptive_timeout=args.adaptive_timeout)
             
             print("\nScan Results:")
             print(f"Host: {result['host']}")
